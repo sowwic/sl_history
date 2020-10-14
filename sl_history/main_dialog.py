@@ -1,6 +1,8 @@
+import os
 import pymel.core as pm
 import pymel.api as pma
 from PySide2 import QtWidgets
+from PySide2 import QtCore
 
 from sl_history.logger import Logger
 from sl_history.config import Config
@@ -13,11 +15,12 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     WINDOW_TITLE = "sl_history"
     UI_NAME = "sl_history"
     UI_SCRIPT = "import sl_history\nsl_history_dialog = sl_history.Dialog()"
+    LOG_FILE = os.path.join(pm.moduleInfo(mn="sl_history", p=1), "sl_history.log")  # type:str
     UI_INSTANCE = None
     MIN_WIDGTH = 200
     MIN_HEIGHT = 100
 
-    @classmethod
+    @ classmethod
     def display(cls):
         if not cls.UI_INSTANCE:
             cls.UI_INSTANCE = Dialog()
@@ -45,7 +48,11 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         # Init fields and config
         self.script_job = 0
         self._create_job()
-        Logger.set_level(Config.get("logging.level", default=10))
+        Logger.set_level(Config.get("logging.level", default=20))
+        Logger.write_to_rotating_file(self.LOG_FILE)
+
+        # Setup context menu
+        self.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
 
         # UI setup
         self.create_actions()
@@ -54,7 +61,7 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.create_connections()
 
     def create_actions(self):
-        pass
+        self.clear_history_action = QtWidgets.QAction("Clear", self)
 
     def create_widgets(self):
         self.history_list = QtWidgets.QListWidget()
@@ -70,6 +77,14 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def create_connections(self):
         self.history_list.itemClicked.connect(self.on_item_selected)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+        self.clear_history_action.triggered.connect(self.history_list.clear)
+
+    def show_context_menu(self, point):
+        contextMenu = QtWidgets.QMenu()
+        contextMenu.addAction(self.clear_history_action)
+
+        contextMenu.exec_(self.mapToGlobal(point))
 
     def _create_job(self):
         if not self.script_job:
@@ -79,23 +94,6 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         if self.script_job:
             pm.scriptJob(k=self.script_job, f=1)
             self.script_job = 0
-
-    def update_size_limit(self):
-        if self.isFloating():
-            self.setMinimumSize(self.MIN_WIDGTH, self.MIN_HEIGHT)
-            self.setMaximumSize(16777215, 16777215)
-
-            try:
-                self.nativeParentWidget().setMaximumSize(self.maximumSize())
-                self.nativeParentWidget().setMinimumSize(self.minimumSize())
-                self.resize(self.minimumSize())
-            except Exception:
-                pass
-        else:
-            try:
-                self.nativeParentWidget().setFixedHeight(200)
-            except BaseException:
-                pass
 
     def on_item_selected(self, item):
         selection_list = item.data(1)
@@ -130,10 +128,6 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             self.history_list.takeItem(self.history_list.count() - 1)
 
     # Events
-
-    def showEvent(self, e):
-        self.update_size_limit()
-
     def closeEvent(self, e):
         self._kill_job()
 
