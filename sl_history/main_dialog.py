@@ -98,7 +98,7 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     def on_item_selected(self, item):
         selection_list = item.data(1)
         self._kill_job()
-        pm.select(selection_list)
+        pm.select([obj for obj in selection_list if pm.objExists(obj)])
         self._create_job()
 
     def update_selection_list(self):
