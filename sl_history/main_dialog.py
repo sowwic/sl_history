@@ -128,6 +128,10 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             self.history_list.takeItem(self.history_list.count() - 1)
 
     # Events
+    def showEvent(self, event):
+        if not self.script_job:
+            self._create_job()
+
     def closeEvent(self, e):
         self._kill_job()
 
