@@ -19,6 +19,7 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
     UI_INSTANCE = None
     MIN_WIDGTH = 200
     MIN_HEIGHT = 100
+    SCRIPT_JOB = 0
 
     @ classmethod
     def display(cls):
@@ -46,8 +47,6 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
             pma.MQtUtil.addWidgetToMayaLayout(widgetPtr, workspaceControlPtr)
 
         # Init fields and config
-        self.script_job = 0
-        self._create_job()
         Logger.set_level(Config.get("logging.level", default=20))
         Logger.write_to_rotating_file(self.LOG_FILE)
 
@@ -87,13 +86,13 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         contextMenu.exec_(self.mapToGlobal(point))
 
     def _create_job(self):
-        if not self.script_job:
-            self.script_job = pm.scriptJob(e=("SelectionChanged", self.update_selection_list))  # type: int
+        if not self.SCRIPT_JOB:
+            self.SCRIPT_JOB = pm.scriptJob(e=("SelectionChanged", self.update_selection_list))  # type: int
 
     def _kill_job(self):
-        if self.script_job:
-            pm.scriptJob(k=self.script_job, f=1)
-            self.script_job = 0
+        if self.SCRIPT_JOB:
+            pm.scriptJob(k=self.SCRIPT_JOB, f=1)
+            self.SCRIPT_JOB = 0
 
     def on_item_selected(self, item):
         selection_list = item.data(1)
@@ -103,7 +102,7 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     def update_selection_list(self):
         sel = pm.ls(sl=1)
-        if not sel:
+        if not sel or self.isHidden():
             return
 
         self.add_list_item([str(obj) for obj in sel])
@@ -129,13 +128,14 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     # Events
     def showEvent(self, event):
-        if not self.script_job:
+        if not self.SCRIPT_JOB:
             self._create_job()
 
     def closeEvent(self, e):
         self._kill_job()
 
     def dockCloseEventTriggered(self):
+        super(Dialog, self).dockCloseEventTriggered()
         self._kill_job()
 
 
