@@ -10,6 +10,18 @@ from maya.app.general.mayaMixin import MayaQWidgetDockableMixin
 from shiboken2 import getCppPointer
 
 
+def add_widget_to_layout(widget, control_name):
+    if pm.workspaceControl(control_name, q=1, ex=1):
+        if os.sys.version_info[0] >= 3:
+            workspaceControlPtr = int(pma.MQtUtil.findControl(control_name))
+            widgetPtr = int(getCppPointer(widget)[0])
+        else:
+            workspaceControlPtr = long(pma.MQtUtil.findControl(control_name))
+            widgetPtr = long(getCppPointer(widget)[0])
+
+        pma.MQtUtil.addWidgetToMayaLayout(widgetPtr, workspaceControlPtr)
+
+
 class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
 
     WINDOW_TITLE = "sl_history"
@@ -40,11 +52,7 @@ class Dialog(MayaQWidgetDockableMixin, QtWidgets.QWidget):
         self.setWindowTitle(self.WINDOW_TITLE)
 
         self.workspaceControlName = "{0}WorkspaceControl".format(self.UI_NAME)
-        if pm.workspaceControl(self.workspaceControlName, q=1, ex=1):
-            workspaceControlPtr = long(pma.MQtUtil.findControl(self.workspaceControlName))  # noqa: F821
-            widgetPtr = long(getCppPointer(self)[0])  # noqa: F821
-
-            pma.MQtUtil.addWidgetToMayaLayout(widgetPtr, workspaceControlPtr)
+        add_widget_to_layout(self, self.workspaceControlName)
 
         # Init fields and config
         Logger.set_level(Config.get("logging.level", default=20))
